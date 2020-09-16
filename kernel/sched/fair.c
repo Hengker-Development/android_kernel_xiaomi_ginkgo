@@ -124,8 +124,13 @@ enum sched_tunable_scaling sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_L
  *
  * (default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds)
  */
+<<<<<<< HEAD
 unsigned int sysctl_sched_min_granularity		= 400000ULL;
 unsigned int normalized_sysctl_sched_min_granularity	= 400000ULL;
+=======
+unsigned int sysctl_sched_min_granularity		= 500000ULL;
+unsigned int normalized_sysctl_sched_min_granularity	= 500000ULL;
+>>>>>>> cfab3cf6fed4 (sched/fair: Reduce latency)
 
 /*
  * This value is kept at sysctl_sched_latency/sysctl_sched_min_granularity
