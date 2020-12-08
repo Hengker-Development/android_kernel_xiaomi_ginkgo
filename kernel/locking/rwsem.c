@@ -366,25 +366,13 @@ static inline void rwsem_set_nonspinnable(struct rw_semaphore *sem)
 
 static inline bool rwsem_read_trylock(struct rw_semaphore *sem, long *cntp)
 {
-	*cntp = atomic_long_add_return_acquire(RWSEM_READER_BIAS, &sem->count);
+	long cnt = atomic_long_add_return_acquire(RWSEM_READER_BIAS, &sem->count);
 
-	if (WARN_ON_ONCE(*cntp < 0))
+	if (WARN_ON_ONCE(cnt < 0))
 		rwsem_set_nonspinnable(sem);
 
-	if (!(*cntp & RWSEM_READ_FAILED_MASK)) {
+	if (!(cnt & RWSEM_READ_FAILED_MASK)) {
 		rwsem_set_reader_owned(sem);
-		return true;
-	}
-
-	return false;
-}
-
-static inline bool rwsem_write_trylock(struct rw_semaphore *sem)
-{
-	long tmp = RWSEM_UNLOCKED_VALUE;
-
-	if (atomic_long_try_cmpxchg_acquire(&sem->count, &tmp, RWSEM_WRITER_LOCKED)) {
-		rwsem_set_owner(sem);
 		return true;
 	}
 
@@ -1448,12 +1436,10 @@ static inline int __down_read_common(struct rw_semaphore *sem, int state)
 
 inline void __down_read(struct rw_semaphore *sem)
 {
-	__down_read_common(sem, TASK_UNINTERRUPTIBLE);
-}
-
-static inline int __down_read_interruptible(struct rw_semaphore *sem)
-{
-	return __down_read_common(sem, TASK_INTERRUPTIBLE);
+	if (!rwsem_read_trylock(sem)) {
+		rwsem_down_read_slowpath(sem, TASK_UNINTERRUPTIBLE);
+		DEBUG_RWSEMS_WARN_ON(!is_rwsem_reader_owned(sem), sem);
+	}
 }
 
 static inline int __down_read_interruptible(struct rw_semaphore *sem)
@@ -1462,15 +1448,18 @@ static inline int __down_read_interruptible(struct rw_semaphore *sem)
 		if (IS_ERR(rwsem_down_read_slowpath(sem, TASK_INTERRUPTIBLE)))
 			return -EINTR;
 		DEBUG_RWSEMS_WARN_ON(!is_rwsem_reader_owned(sem), sem);
-	} else {
-		rwsem_set_reader_owned(sem);
 	}
 	return 0;
 }
 
 static inline int __down_read_killable(struct rw_semaphore *sem)
 {
-	return __down_read_common(sem, TASK_KILLABLE);
+	if (!rwsem_read_trylock(sem)) {
+		if (IS_ERR(rwsem_down_read_slowpath(sem, TASK_KILLABLE)))
+			return -EINTR;
+		DEBUG_RWSEMS_WARN_ON(!is_rwsem_reader_owned(sem), sem);
+	}
+	return 0;
 }
 
 static inline int __down_read_trylock(struct rw_semaphore *sem)
