@@ -543,7 +543,7 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 		int target = sock_rcvlowat(sk, 0, INT_MAX);
 		u16 urg_data = READ_ONCE(tp->urg_data);
 
-	        if (urg_data &&
+	        if (unlikely(urg_data) &&
 		    READ_ONCE(tp->urg_seq) == READ_ONCE(tp->copied_seq) &&
 		    !sock_flag(sk, SOCK_URGINLINE))
 			target++;
@@ -2015,7 +2015,7 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 		tcp_rcv_space_adjust(sk);
 
 skip_copy:
-		if (tp->urg_data && after(tp->copied_seq, tp->urg_seq)) {
+		if (unlikely(tp->urg_data) && after(tp->copied_seq, tp->urg_seq)) {
 		        WRITE_ONCE(tp->urg_data, 0);
 			tcp_fast_path_check(sk);
 		}
