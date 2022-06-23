@@ -5,16 +5,40 @@
 
 SECONDS=0 # builtin bash timer
 ZIPNAME="QuicksilveRV2-ginkgo-$(date '+%Y%m%d-%H%M').zip"
-TC_DIR="$HOME/tc/aosp-clang"
-GCC_64_DIR="$HOME/tc/aarch64-linux-android-4.9"
-GCC_32_DIR="$HOME/tc/arm-linux-androideabi-4.9"
+GC_DIR="$HOME/tc/aosp-clang"
+GCC_DIR="$HOME/tc/gcc"
+GCC64_DIR="$HOME/tc/gcc64"
 AK3_DIR="$HOME/android/AnyKernel3"
 DEFCONFIG="vendor/ginkgo-perf_defconfig"
 
-export PATH="$TC_DIR/bin:$PATH"
+export PATH="${GC_DIR}/bin:${GCC64_DIR}/bin:${GCC_DIR}/bin:/usr/bin:${PATH}"
 
-export KBUILD_BUILD_USER=adithya
-export KBUILD_BUILD_HOST=ghostrider_reborn
+if ! [ -d "$GC_DIR" ]; then
+echo "Aosp clang not found! Cloning to $GC_DIR..."
+if ! git clone -b master --depth=1 https://github.com/pjorektneira/aosp-clang $GC_DIR; then
+echo "Cloning failed! Aborting..."
+exit 1
+fi
+fi
+
+if ! [ -d "$GCC64_DIR" ]; then
+echo "GCC 64 not found! Cloning to $GCC64_DIR..."
+if ! git clone https://github.com/WisnuArdhi28/aarch64-linux-android-4.9 -b main --depth=1 $GCC64_DIR; then
+echo "Cloning failed! Aborting..."
+exit 1
+fi
+fi
+
+if ! [ -d "$GCC_DIR" ]; then
+echo "GCC not found! Cloning to $GCC_DIR..."
+if ! git clone https://github.com/WisnuArdhi28/arm-linux-androideabi-4.9 -b main  --depth=1 $GCC_DIR; then
+echo "Cloning failed! Aborting..."
+exit 1
+fi
+fi
+
+export KBUILD_BUILD_USER=WisnuArdhi
+export KBUILD_BUILD_HOST=WisnuArdhi28
 
 if [[ $1 = "-r" || $1 = "--regen" ]]; then
 make O=out ARCH=arm64 $DEFCONFIG savedefconfig
@@ -30,7 +54,7 @@ mkdir -p out
 make O=out ARCH=arm64 $DEFCONFIG
 
 echo -e "\nStarting compilation...\n"
-make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld AR=llvm-ar AS=llvm-as NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip CROSS_COMPILE=$GCC_64_DIR/bin/aarch64-linux-android- CROSS_COMPILE_ARM32=$GCC_32_DIR/bin/arm-linux-androideabi- CLANG_TRIPLE=aarch64-linux-gnu- Image.gz-dtb dtbo.img
+make -j$(nproc --all) O=out ARCH=arm64 LD_LIBRARY_PATH="${GC_DIR}/lib:${LD_LIBRARY_PATH}" CC=clang LD=ld.lld AR=llvm-ar AS=llvm-as NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- CLANG_TRIPLE=aarch64-linux-gnu- Image.gz-dtb dtbo.img
 
 if [ -f "out/arch/arm64/boot/Image.gz-dtb" ] && [ -f "out/arch/arm64/boot/dtbo.img" ]; then
 echo -e "\nKernel compiled succesfully! Zipping up...\n"
@@ -51,7 +75,7 @@ rm -rf AnyKernel3
 rm -rf out/arch/arm64/boot
 echo -e "\nCompleted in $((SECONDS / 60)) minute(s) and $((SECONDS % 60)) second(s) !"
 echo "Zip: $ZIPNAME"
-[ -x "$(command -v gdrive)" ] && gdrive upload --share "$ZIPNAME"
+curl -T $ZIPNAME temp.sh; echo
 else
 echo -e "\nCompilation failed!"
 exit 1
