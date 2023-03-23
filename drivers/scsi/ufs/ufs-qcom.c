@@ -2493,7 +2493,7 @@ bool ufs_qcom_testbus_cfg_is_ok(struct ufs_qcom_host *host,
 int ufs_qcom_testbus_config(struct ufs_qcom_host *host)
 {
 	int reg = 0;
-	int offset = -1, ret = 0, testbus_sel_offset = 19;
+	int offset = -1, ret = 0;
 	u32 mask = TEST_BUS_SUB_SEL_MASK;
 	unsigned long flags;
 	struct ufs_hba *hba;
@@ -2569,8 +2569,8 @@ int ufs_qcom_testbus_config(struct ufs_qcom_host *host)
 
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 	if (reg) {
-		ufshcd_rmwl(host->hba, TEST_BUS_SEL,
-		    (u32)host->testbus.select_major << testbus_sel_offset,
+	ufshcd_rmwl(host->hba, TEST_BUS_SEL,
+		    (u32)host->testbus.select_major << 19,
 		    REG_UFS_CFG1);
 		ufshcd_rmwl(host->hba, mask,
 		    (u32)host->testbus.select_minor << offset,
